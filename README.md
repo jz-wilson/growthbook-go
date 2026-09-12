@@ -3,7 +3,7 @@
 A small, typed Go client for the [GrowthBook](https://www.growthbook.io/)
 REST API. It covers the endpoints needed to manage projects, environments,
 features (including targeting rules), and SDK connections, and is shared by
-[provider-growthbook](https://github.com/jz-wilson/provider-growthbook)
+[provider-growthbook](https://github.com/jz-wilson/crossplane-provider-growthbook)
 (Crossplane) and
 [terraform-provider-growthbook](https://github.com/jz-wilson/terraform-provider-growthbook).
 
