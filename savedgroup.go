@@ -44,15 +44,20 @@ type SavedGroup struct {
 // POST /v1/saved-groups/{id} (update). Name is required on create; every
 // field is optional on update. Type is inferred by the API from the other
 // fields when omitted, so it is only sent on create.
+//
+// Values and Projects are *[]string, not []string: a nil pointer omits the
+// field, while a pointer to an empty slice sends "[]" so an update can
+// clear a previously-set list. encoding/json's omitempty treats a nil and
+// an empty []string identically, which would make clearing impossible.
 type SavedGroupRequest struct {
-	Name           string   `json:"name,omitempty"`
-	Type           string   `json:"type,omitempty"`
-	Condition      *string  `json:"condition,omitempty"`
-	AttributeKey   string   `json:"attributeKey,omitempty"`
-	Values         []string `json:"values,omitempty"`
-	Owner          *string  `json:"owner,omitempty"`
-	Projects       []string `json:"projects,omitempty"`
-	BypassApproval *bool    `json:"bypassApproval,omitempty"`
+	Name           string    `json:"name,omitempty"`
+	Type           string    `json:"type,omitempty"`
+	Condition      *string   `json:"condition,omitempty"`
+	AttributeKey   string    `json:"attributeKey,omitempty"`
+	Values         *[]string `json:"values,omitempty"`
+	Owner          *string   `json:"owner,omitempty"`
+	Projects       *[]string `json:"projects,omitempty"`
+	BypassApproval *bool     `json:"bypassApproval,omitempty"`
 }
 
 type savedGroupEnvelope struct {

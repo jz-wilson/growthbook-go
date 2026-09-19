@@ -54,9 +54,13 @@ func TestSavedGroupRoundTrip(t *testing.T) {
 		case r.Method == http.MethodDelete:
 			_, _ = w.Write([]byte(`{"deletedId":"sg_1"}`))
 		default:
+			var values []string
+			if gotBody.Values != nil {
+				values = *gotBody.Values
+			}
 			_ = json.NewEncoder(w).Encode(map[string]any{"savedGroup": SavedGroup{
 				ID: testSavedGroupID, Name: gotBody.Name, Type: testSavedGroupType,
-				AttributeKey: gotBody.AttributeKey, Values: gotBody.Values,
+				AttributeKey: gotBody.AttributeKey, Values: values,
 			}})
 		}
 	}))
@@ -80,7 +84,7 @@ func TestSavedGroupRoundTrip(t *testing.T) {
 
 	created, err := c.CreateSavedGroup(ctx, SavedGroupRequest{
 		Name: testSavedGroupName, Type: testSavedGroupType,
-		AttributeKey: testSavedGroupAttributeKey, Values: []string{"x", "y"},
+		AttributeKey: testSavedGroupAttributeKey, Values: savedGroupStrSlicePtr([]string{"x", "y"}),
 	})
 	if err != nil || gotMethod != http.MethodPost || gotPath != "/api/v1/saved-groups" {
 		t.Fatalf("CreateSavedGroup() err=%v method=%q path=%q", err, gotMethod, gotPath)
@@ -89,9 +93,16 @@ func TestSavedGroupRoundTrip(t *testing.T) {
 		t.Errorf("CreateSavedGroup() = %+v, want values echoed back", created)
 	}
 
-	updated, err := c.UpdateSavedGroup(ctx, testSavedGroupID, SavedGroupRequest{Values: []string{"z"}})
+	updated, err := c.UpdateSavedGroup(ctx, testSavedGroupID, SavedGroupRequest{Values: savedGroupStrSlicePtr([]string{"z"})})
 	if err != nil || gotMethod != http.MethodPost || gotPath != "/api/v1/saved-groups/sg_1" || len(updated.Values) != 1 || updated.Values[0] != "z" {
 		t.Errorf("UpdateSavedGroup() = %+v, method=%q, path=%q, err %v", updated, gotMethod, gotPath, err)
+	}
+
+	// Clearing values/projects to empty must send "[]", not omit the field
+	// (a nil *[]string omits; a pointer to an empty slice sends "[]").
+	cleared, err := c.UpdateSavedGroup(ctx, testSavedGroupID, SavedGroupRequest{Values: savedGroupStrSlicePtr([]string{})})
+	if err != nil || len(cleared.Values) != 0 {
+		t.Errorf("UpdateSavedGroup(empty values) = %+v, err %v, want values cleared", cleared, err)
 	}
 
 	if err := c.DeleteSavedGroup(ctx, testSavedGroupID); err != nil || gotMethod != http.MethodDelete || gotPath != "/api/v1/saved-groups/sg_1" {
@@ -108,6 +119,32 @@ func TestSavedGroupRequestOmitsUnset(t *testing.T) {
 		t.Errorf("unset fields must be omitted: -want +got\n%s", diff)
 	}
 }
+
+func TestSavedGroupRequestValuesProjectsNilVsEmpty(t *testing.T) {
+	// nil *[]string omits the field entirely; a pointer to an empty slice
+	// must marshal to "[]" so an update can clear a previously-set list.
+	nilBody, err := json.Marshal(SavedGroupRequest{Name: testSavedGroupName})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(`{"name":"internal-users"}`, string(nilBody)); diff != "" {
+		t.Errorf("nil Values/Projects must be omitted: -want +got\n%s", diff)
+	}
+
+	emptyBody, err := json.Marshal(SavedGroupRequest{
+		Name:     testSavedGroupName,
+		Values:   savedGroupStrSlicePtr([]string{}),
+		Projects: savedGroupStrSlicePtr([]string{}),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(`{"name":"internal-users","values":[],"projects":[]}`, string(emptyBody)); diff != "" {
+		t.Errorf("empty-slice Values/Projects must marshal to []: -want +got\n%s", diff)
+	}
+}
+
+func savedGroupStrSlicePtr(s []string) *[]string { return &s }
 
 func TestSavedGroupNotFound(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
