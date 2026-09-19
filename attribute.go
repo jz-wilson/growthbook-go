@@ -44,15 +44,19 @@ type Attribute struct {
 // create; PUT's schema does not accept Property at all (the API rejects
 // unknown fields), so callers must leave it unset when updating.
 type AttributeRequest struct {
-	Property      string   `json:"property,omitempty"`
-	Datatype      string   `json:"datatype,omitempty"`
-	Description   *string  `json:"description,omitempty"`
-	Archived      *bool    `json:"archived,omitempty"`
-	HashAttribute *bool    `json:"hashAttribute,omitempty"`
-	Enum          *string  `json:"enum,omitempty"`
-	Format        *string  `json:"format,omitempty"`
-	Projects      []string `json:"projects,omitempty"`
-	Tags          []string `json:"tags,omitempty"`
+	Property      string  `json:"property,omitempty"`
+	Datatype      string  `json:"datatype,omitempty"`
+	Description   *string `json:"description,omitempty"`
+	Archived      *bool   `json:"archived,omitempty"`
+	HashAttribute *bool   `json:"hashAttribute,omitempty"`
+	Enum          *string `json:"enum,omitempty"`
+	Format        *string `json:"format,omitempty"`
+	// Projects and Tags are *[]string, not []string: a plain slice's
+	// omitempty also drops an empty (non-nil) slice, so there would be no
+	// way to send "[]" and clear the list. nil means omit the field; a
+	// pointer to an empty slice means send "[]".
+	Projects *[]string `json:"projects,omitempty"`
+	Tags     *[]string `json:"tags,omitempty"`
 }
 
 type attributeEnvelope struct {

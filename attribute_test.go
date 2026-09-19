@@ -94,6 +94,25 @@ func TestAttributeRequestOmitsUnset(t *testing.T) {
 	}
 }
 
+func TestAttributeRequestClearsListFields(t *testing.T) {
+	empty := []string{}
+	b, err := json.Marshal(AttributeRequest{Projects: &empty, Tags: &empty})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(`{"projects":[],"tags":[]}`, string(b)); diff != "" {
+		t.Errorf("a pointer to an empty slice must send []: -want +got\n%s", diff)
+	}
+
+	b, err = json.Marshal(AttributeRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(`{}`, string(b)); diff != "" {
+		t.Errorf("nil Projects/Tags must be omitted, not sent as null: -want +got\n%s", diff)
+	}
+}
+
 func TestAttributeDeleteNotFound(t *testing.T) {
 	// GrowthBook sometimes returns 400 with a "Could not find ..." message
 	// for a missing resource instead of a clean 404; IsNotFound already
