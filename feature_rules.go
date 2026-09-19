@@ -39,6 +39,14 @@ type FeatureRuleVariation struct {
 	Value       string `json:"value"`
 }
 
+// ScheduleRule is one on/off transition in a rule's schedule. A nil
+// Timestamp is the API's nullable-timestamp encoding for an open-ended
+// transition. Scheduling requires a GrowthBook Pro plan or above.
+type ScheduleRule struct {
+	Enabled   bool    `json:"enabled"`
+	Timestamp *string `json:"timestamp"`
+}
+
 // FeatureRule is one entry in a feature's flat v2 rules array. It is a
 // single JSON-faithful struct across all rule kinds: Type discriminates
 // which of the type-specific fields apply, and every other field is
@@ -71,4 +79,11 @@ type FeatureRule struct {
 	// ExperimentID and Variations apply to the "experiment-ref" type.
 	ExperimentID string                 `json:"experimentId,omitempty"`
 	Variations   []FeatureRuleVariation `json:"variations,omitempty"`
+
+	// ScheduleRules and ScheduleType configure a simple time-based on/off
+	// schedule for the rule. All four writable v2 rule types (force,
+	// rollout, experiment-ref, safe-rollout) accept them. Requires
+	// GrowthBook Pro.
+	ScheduleRules []ScheduleRule `json:"scheduleRules,omitempty"`
+	ScheduleType  string         `json:"scheduleType,omitempty"`
 }

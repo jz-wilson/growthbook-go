@@ -34,6 +34,7 @@ const (
 	featureRuleTestForceType    = "force"
 	featureRuleTestPrereqParent = "parent_feature"
 	featureRuleTestPrereqCond   = `{"value":true}`
+	featureRuleTestControl      = "control"
 )
 
 func TestFeatureRuleEncodingForce(t *testing.T) {
@@ -140,7 +141,7 @@ func TestFeatureRuleEncodingExperimentRef(t *testing.T) {
 		AllEnvironments: true,
 		ExperimentID:    "exp_1",
 		Variations: []FeatureRuleVariation{
-			{VariationID: "0", Value: "control"},
+			{VariationID: "0", Value: featureRuleTestControl},
 			{VariationID: "1", Value: "treatment"},
 		},
 	}}
@@ -148,7 +149,7 @@ func TestFeatureRuleEncodingExperimentRef(t *testing.T) {
 	var gotBody map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewDecoder(r.Body).Decode(&gotBody)
-		_ = json.NewEncoder(w).Encode(featureEnvelope{Feature: Feature{ID: featureRuleTestFeatureID, ValueType: "string", DefaultValue: "control"}})
+		_ = json.NewEncoder(w).Encode(featureEnvelope{Feature: Feature{ID: featureRuleTestFeatureID, ValueType: "string", DefaultValue: featureRuleTestControl}})
 	}))
 	defer srv.Close()
 
@@ -170,7 +171,7 @@ func TestFeatureRuleEncodingExperimentRef(t *testing.T) {
 		t.Fatalf("variations = %+v, want 2", rule["variations"])
 	}
 	v0, _ := variations[0].(map[string]any)
-	if v0["variationId"] != "0" || v0["value"] != "control" {
+	if v0["variationId"] != "0" || v0["value"] != featureRuleTestControl {
 		t.Errorf("variations[0] = %+v", v0)
 	}
 	if _, ok := rule["value"]; ok {
@@ -300,5 +301,91 @@ func TestFeatureGetDecodesRulePrerequisites(t *testing.T) {
 	}
 	if len(f.Rules) != 1 || len(f.Rules[0].Prerequisites) != 1 || f.Rules[0].Prerequisites[0].ID != featureRuleTestPrereqParent {
 		t.Errorf("Rules = %+v", f.Rules)
+	}
+}
+
+func TestFeatureRuleEncodingScheduleRules(t *testing.T) {
+	ts := "2026-01-01T00:00:00Z"
+	rules := []FeatureRule{{
+		Type:            featureRuleTestForceType,
+		AllEnvironments: true,
+		Value:           featureRuleTestValueTrue,
+		ScheduleType:    "schedule",
+		ScheduleRules: []ScheduleRule{
+			{Enabled: true, Timestamp: &ts},
+			{Enabled: false, Timestamp: nil},
+		},
+	}}
+
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		_ = json.NewEncoder(w).Encode(featureEnvelope{Feature: Feature{ID: featureRuleTestFeatureID, ValueType: featureRuleTestBooleanType, DefaultValue: featureRuleTestValueTrue}})
+	}))
+	defer srv.Close()
+
+	c, err := NewFromSecret([]byte(`{"apiKey":"secret_1","apiUrl":"` + srv.URL + `/api"}`))
+	if err != nil {
+		t.Fatalf("NewFromSecret() error = %v", err)
+	}
+	if _, err := c.UpdateFeature(context.Background(), featureRuleTestFeatureID, FeatureRequest{Rules: &rules}); err != nil {
+		t.Fatalf("UpdateFeature() error = %v", err)
+	}
+
+	rawRules, _ := gotBody["rules"].([]any)
+	rule, _ := rawRules[0].(map[string]any)
+	if rule["scheduleType"] != "schedule" {
+		t.Errorf("scheduleType = %#v, want schedule", rule["scheduleType"])
+	}
+	sr, _ := rule["scheduleRules"].([]any)
+	if len(sr) != 2 {
+		t.Fatalf("scheduleRules = %+v, want 2", rule["scheduleRules"])
+	}
+	s0, _ := sr[0].(map[string]any)
+	if s0["enabled"] != true || s0["timestamp"] != ts {
+		t.Errorf("scheduleRules[0] = %+v", s0)
+	}
+	s1, _ := sr[1].(map[string]any)
+	if s1["enabled"] != false {
+		t.Errorf("scheduleRules[1] = %+v", s1)
+	}
+	if v, ok := s1["timestamp"]; !ok || v != nil {
+		t.Errorf("scheduleRules[1].timestamp = %#v, want explicit null", v)
+	}
+}
+
+func TestFeatureGetDecodesScheduleRules(t *testing.T) {
+	ts := "2026-01-01T00:00:00Z"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(featureEnvelope{Feature: Feature{
+			ID:           featureRuleTestFeatureID,
+			ValueType:    featureRuleTestBooleanType,
+			DefaultValue: featureRuleTestValueTrue,
+			Rules: []FeatureRule{
+				{
+					Type: featureRuleTestForceType, ID: "fr_1", AllEnvironments: true,
+					Value:         featureRuleTestValueTrue,
+					ScheduleType:  "schedule",
+					ScheduleRules: []ScheduleRule{{Enabled: true, Timestamp: &ts}},
+				},
+			},
+		}})
+	}))
+	defer srv.Close()
+
+	c, err := NewFromSecret([]byte(`{"apiKey":"secret_1","apiUrl":"` + srv.URL + `/api"}`))
+	if err != nil {
+		t.Fatalf("NewFromSecret() error = %v", err)
+	}
+	f, err := c.GetFeature(context.Background(), featureRuleTestFeatureID)
+	if err != nil {
+		t.Fatalf("GetFeature() error = %v", err)
+	}
+	if len(f.Rules) != 1 {
+		t.Fatalf("Rules = %+v, want 1 entry", f.Rules)
+	}
+	r := f.Rules[0]
+	if r.ScheduleType != "schedule" || len(r.ScheduleRules) != 1 || r.ScheduleRules[0].Timestamp == nil || *r.ScheduleRules[0].Timestamp != ts {
+		t.Errorf("Rules[0] schedule = %+v", r)
 	}
 }
