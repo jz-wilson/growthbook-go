@@ -133,7 +133,7 @@ func TestFeatureRequestPrerequisitesNilVsEmpty(t *testing.T) {
 	}
 
 	// A non-nil, empty Prerequisites slice clears them by encoding [].
-	empty := []FeaturePrerequisite{}
+	empty := []string{}
 	b, err = json.Marshal(FeatureRequest{Prerequisites: &empty})
 	if err != nil {
 		t.Fatalf("Marshal() error = %v", err)
@@ -148,7 +148,7 @@ func TestFeatureRequestPrerequisitesNilVsEmpty(t *testing.T) {
 }
 
 func TestFeatureRequestPrerequisitesEncoding(t *testing.T) {
-	prereqs := []FeaturePrerequisite{{ID: featureRuleTestPrereqParent, Condition: featureRuleTestPrereqCond}}
+	prereqs := []string{featureRuleTestPrereqParent}
 
 	var gotBody map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -166,12 +166,8 @@ func TestFeatureRequestPrerequisitesEncoding(t *testing.T) {
 	}
 
 	raw, _ := gotBody["prerequisites"].([]any)
-	if len(raw) != 1 {
-		t.Fatalf("prerequisites = %+v, want 1 entry", gotBody["prerequisites"])
-	}
-	p, _ := raw[0].(map[string]any)
-	if p["id"] != featureRuleTestPrereqParent || p["condition"] != featureRuleTestPrereqCond {
-		t.Errorf("prerequisites[0] = %+v", p)
+	if len(raw) != 1 || raw[0] != featureRuleTestPrereqParent {
+		t.Errorf("prerequisites = %+v, want [%q]", gotBody["prerequisites"], featureRuleTestPrereqParent)
 	}
 }
 
@@ -181,7 +177,7 @@ func TestFeatureGetDecodesPrerequisites(t *testing.T) {
 			ID:            featureRuleTestFeatureID,
 			ValueType:     featureRuleTestBooleanType,
 			DefaultValue:  featureRuleTestValueTrue,
-			Prerequisites: []FeaturePrerequisite{{ID: featureRuleTestPrereqParent, Condition: featureRuleTestPrereqCond}},
+			Prerequisites: []string{featureRuleTestPrereqParent},
 		}})
 	}))
 	defer srv.Close()
@@ -194,7 +190,7 @@ func TestFeatureGetDecodesPrerequisites(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetFeature() error = %v", err)
 	}
-	if len(f.Prerequisites) != 1 || f.Prerequisites[0].ID != featureRuleTestPrereqParent || f.Prerequisites[0].Condition != featureRuleTestPrereqCond {
+	if len(f.Prerequisites) != 1 || f.Prerequisites[0] != featureRuleTestPrereqParent {
 		t.Errorf("Prerequisites = %+v", f.Prerequisites)
 	}
 }
