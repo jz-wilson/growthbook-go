@@ -107,7 +107,21 @@ func (c *Client) UpdateSavedGroup(ctx context.Context, id string, req SavedGroup
 }
 
 // DeleteSavedGroup deletes a saved group. Deleting a saved group that no
-// longer exists returns an APIError satisfying IsNotFound.
+// longer exists returns an APIError satisfying IsNotFound. GrowthBook
+// refuses to delete a saved group that isn't archived first (HTTP 400,
+// "must be archived before it can be deleted"); call ArchiveSavedGroup
+// before DeleteSavedGroup to avoid that.
 func (c *Client) DeleteSavedGroup(ctx context.Context, id string) error {
 	return c.do(ctx, http.MethodDelete, "/v1/saved-groups/"+url.PathEscape(id), nil, nil)
+}
+
+// ArchiveSavedGroup archives a saved group, a required step before deleting
+// it. Archiving a saved group still referenced by a feature, experiment, or
+// another saved group returns an APIError with StatusCode 422.
+func (c *Client) ArchiveSavedGroup(ctx context.Context, id string) (*SavedGroup, error) {
+	var out savedGroupEnvelope
+	if err := c.do(ctx, http.MethodPost, "/v1/saved-groups/"+url.PathEscape(id)+"/archive", struct{}{}, &out); err != nil {
+		return nil, err
+	}
+	return &out.SavedGroup, nil
 }

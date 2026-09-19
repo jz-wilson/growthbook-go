@@ -146,6 +146,32 @@ func TestSavedGroupRequestValuesProjectsNilVsEmpty(t *testing.T) {
 
 func savedGroupStrSlicePtr(s []string) *[]string { return &s }
 
+func TestArchiveSavedGroup(t *testing.T) {
+	var gotMethod, gotPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		gotPath = r.URL.Path
+		archived := true
+		_ = json.NewEncoder(w).Encode(map[string]any{"savedGroup": SavedGroup{
+			ID: testSavedGroupID, Name: testSavedGroupName, Type: testSavedGroupType, Archived: &archived,
+		}})
+	}))
+	defer srv.Close()
+
+	c, err := NewFromSecret([]byte(`{"apiKey":"secret_1","apiUrl":"` + srv.URL + `/api"}`))
+	if err != nil {
+		t.Fatalf("NewFromSecret() error = %v", err)
+	}
+
+	got, err := c.ArchiveSavedGroup(context.Background(), testSavedGroupID)
+	if err != nil || gotMethod != http.MethodPost || gotPath != "/api/v1/saved-groups/sg_1/archive" {
+		t.Fatalf("ArchiveSavedGroup() err=%v method=%q path=%q", err, gotMethod, gotPath)
+	}
+	if got.Archived == nil || !*got.Archived {
+		t.Errorf("ArchiveSavedGroup() Archived = %v, want true", got.Archived)
+	}
+}
+
 func TestSavedGroupNotFound(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
