@@ -39,6 +39,31 @@ type FeatureRuleVariation struct {
 	Value       string `json:"value"`
 }
 
+// FeatureRuleValue is one weighted variation of an inline "experiment"
+// rule.
+type FeatureRuleValue struct {
+	Value  string  `json:"value"`
+	Weight float64 `json:"weight"`
+	Name   string  `json:"name,omitempty"`
+}
+
+// FeatureRuleNamespace scopes an inline "experiment" rule to a slice of a
+// shared namespace, so multiple experiments can split traffic without
+// overlapping.
+type FeatureRuleNamespace struct {
+	Enabled bool       `json:"enabled"`
+	Name    string     `json:"name"`
+	Range   [2]float64 `json:"range"`
+}
+
+// ScheduleRule is one on/off transition in a rule's schedule. A nil
+// Timestamp is the API's nullable-timestamp encoding for an open-ended
+// transition. Scheduling requires a GrowthBook Pro plan or above.
+type ScheduleRule struct {
+	Enabled   bool    `json:"enabled"`
+	Timestamp *string `json:"timestamp"`
+}
+
 // FeatureRule is one entry in a feature's flat v2 rules array. It is a
 // single JSON-faithful struct across all rule kinds: Type discriminates
 // which of the type-specific fields apply, and every other field is
@@ -71,4 +96,21 @@ type FeatureRule struct {
 	// ExperimentID and Variations apply to the "experiment-ref" type.
 	ExperimentID string                 `json:"experimentId,omitempty"`
 	Variations   []FeatureRuleVariation `json:"variations,omitempty"`
+
+	// TrackingKey, FallbackAttribute, DisableStickyBucketing,
+	// BucketVersion, MinBucketVersion, Namespace, and Values apply to the
+	// inline "experiment" type. HashAttribute above is shared with
+	// "rollout".
+	TrackingKey            string                `json:"trackingKey,omitempty"`
+	FallbackAttribute      string                `json:"fallbackAttribute,omitempty"`
+	DisableStickyBucketing bool                  `json:"disableStickyBucketing,omitempty"`
+	BucketVersion          *float64              `json:"bucketVersion,omitempty"`
+	MinBucketVersion       *float64              `json:"minBucketVersion,omitempty"`
+	Namespace              *FeatureRuleNamespace `json:"namespace,omitempty"`
+	Values                 []FeatureRuleValue    `json:"values,omitempty"`
+
+	// ScheduleRules and ScheduleType configure a simple time-based on/off
+	// schedule for the rule, regardless of type. Requires GrowthBook Pro.
+	ScheduleRules []ScheduleRule `json:"scheduleRules,omitempty"`
+	ScheduleType  string         `json:"scheduleType,omitempty"`
 }
