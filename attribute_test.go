@@ -65,6 +65,11 @@ func TestAttributeRoundTrip(t *testing.T) {
 		t.Errorf("ListAttributes() = %+v, path=%q, err %v", attrs, gotPath, err)
 	}
 
+	got, err := c.GetAttribute(ctx, testAttrProperty)
+	if err != nil || got.Property != testAttrProperty {
+		t.Errorf("GetAttribute() = %+v, err %v", got, err)
+	}
+
 	created, err := c.CreateAttribute(ctx, AttributeRequest{Property: testAttrProperty, Datatype: testAttrDatatype})
 	if err != nil || gotMethod != http.MethodPost || gotPath != "/api/v1/attributes" || created.Property != testAttrProperty {
 		t.Fatalf("CreateAttribute() = %+v, method=%q, path=%q, err %v", created, gotMethod, gotPath, err)
@@ -130,5 +135,23 @@ func TestAttributeDeleteNotFound(t *testing.T) {
 
 	if err := c.DeleteAttribute(context.Background(), "missing_attr"); !IsNotFound(err) {
 		t.Errorf("DeleteAttribute(missing) err = %v, want not found", err)
+	}
+}
+
+func TestAttributeGetNotFound(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"attributes": []Attribute{
+			{Property: testAttrProperty, Datatype: testAttrDatatype},
+		}})
+	}))
+	defer srv.Close()
+
+	c, err := NewFromSecret([]byte(`{"apiKey":"secret_1","apiUrl":"` + srv.URL + `/api"}`))
+	if err != nil {
+		t.Fatalf("NewFromSecret() error = %v", err)
+	}
+
+	if _, err := c.GetAttribute(context.Background(), "missing_attr"); !IsNotFound(err) {
+		t.Errorf("GetAttribute(missing) err = %v, want not found", err)
 	}
 }

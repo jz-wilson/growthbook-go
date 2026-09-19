@@ -23,8 +23,7 @@ import (
 )
 
 // Attribute is a GrowthBook SDK targeting attribute as returned by the API.
-// Property is the attribute's identifier; the API has no GET-by-id endpoint,
-// only list, so callers needing one attribute must list and filter.
+// Property is the attribute's identifier.
 type Attribute struct {
 	Property      string `json:"property"`
 	Datatype      string `json:"datatype"`
@@ -74,6 +73,22 @@ func (c *Client) ListAttributes(ctx context.Context) ([]Attribute, error) {
 		return nil, err
 	}
 	return out.Attributes, nil
+}
+
+// GetAttribute finds one attribute by property. The API has no GET by id, so
+// this lists and filters. A missing attribute returns an APIError satisfying
+// IsNotFound, matching the other resources.
+func (c *Client) GetAttribute(ctx context.Context, property string) (*Attribute, error) {
+	attrs, err := c.ListAttributes(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for i := range attrs {
+		if attrs[i].Property == property {
+			return &attrs[i], nil
+		}
+	}
+	return nil, &APIError{StatusCode: http.StatusNotFound, Message: "attribute " + property + " not found"}
 }
 
 // CreateAttribute creates an SDK targeting attribute and returns the stored
