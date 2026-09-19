@@ -36,12 +36,16 @@ type Environment struct {
 // PUT /v1/environments/{id}. ID and Parent are create-only: callers must
 // leave them empty on update, which the JSON encoding then omits.
 type EnvironmentRequest struct {
-	ID           string   `json:"id,omitempty"`
-	Description  *string  `json:"description,omitempty"`
-	ToggleOnList *bool    `json:"toggleOnList,omitempty"`
-	DefaultState *bool    `json:"defaultState,omitempty"`
-	Projects     []string `json:"projects,omitempty"`
-	Parent       *string  `json:"parent,omitempty"`
+	ID           string  `json:"id,omitempty"`
+	Description  *string `json:"description,omitempty"`
+	ToggleOnList *bool   `json:"toggleOnList,omitempty"`
+	DefaultState *bool   `json:"defaultState,omitempty"`
+	// Projects is *[]string, not []string: a plain slice's omitempty also
+	// drops an empty (non-nil) slice, so there would be no way to send
+	// "[]" and clear the list. nil means omit the field; a pointer to an
+	// empty slice means send "[]".
+	Projects *[]string `json:"projects,omitempty"`
+	Parent   *string   `json:"parent,omitempty"`
 }
 
 type environmentEnvelope struct {

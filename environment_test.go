@@ -100,6 +100,25 @@ func TestEnvironmentRequestOmitsUnset(t *testing.T) {
 	}
 }
 
+func TestEnvironmentRequestClearsProjects(t *testing.T) {
+	empty := []string{}
+	b, err := json.Marshal(EnvironmentRequest{Projects: &empty})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(`{"projects":[]}`, string(b)); diff != "" {
+		t.Errorf("a pointer to an empty slice must send []: -want +got\n%s", diff)
+	}
+
+	b, err = json.Marshal(EnvironmentRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(`{}`, string(b)); diff != "" {
+		t.Errorf("nil Projects must be omitted, not sent as null: -want +got\n%s", diff)
+	}
+}
+
 func ptrStr(s string) *string { return &s }
 
 func derefStr(s *string) string {
