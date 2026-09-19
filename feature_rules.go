@@ -23,6 +23,15 @@ type FeatureSavedGroupTargeting struct {
 	IDs   []string `json:"ids"`
 }
 
+// FeaturePrerequisite gates a feature, or one of its rules, on another
+// feature's value. ID is the parent feature's key; Condition is a JSON
+// string evaluated against the parent feature's value (e.g.
+// `{"value": true}`), the same encoding as FeatureRule.Condition.
+type FeaturePrerequisite struct {
+	ID        string `json:"id"`
+	Condition string `json:"condition"`
+}
+
 // FeatureRuleVariation maps one experiment variation to the value an
 // experiment-ref rule serves for it.
 type FeatureRuleVariation struct {
@@ -49,6 +58,7 @@ type FeatureRule struct {
 	Enabled         *bool                        `json:"enabled,omitempty"`
 	Condition       string                       `json:"condition,omitempty"`
 	SavedGroups     []FeatureSavedGroupTargeting `json:"savedGroups,omitempty"`
+	Prerequisites   []FeaturePrerequisite        `json:"prerequisites,omitempty"`
 	AllEnvironments bool                         `json:"allEnvironments"`
 	Environments    []string                     `json:"environments,omitempty"`
 

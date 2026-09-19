@@ -38,19 +38,20 @@ type FeatureRevision struct {
 // per-environment enabled toggles, rules, and metadata); other v2 fields
 // are intentionally omitted and pass through unread.
 type Feature struct {
-	ID           string                        `json:"id"`
-	Archived     bool                          `json:"archived,omitempty"`
-	Description  string                        `json:"description,omitempty"`
-	Owner        string                        `json:"owner,omitempty"`
-	Project      string                        `json:"project,omitempty"`
-	ValueType    string                        `json:"valueType"`
-	DefaultValue string                        `json:"defaultValue"`
-	Tags         []string                      `json:"tags,omitempty"`
-	Environments map[string]FeatureEnvironment `json:"environments,omitempty"`
-	Rules        []FeatureRule                 `json:"rules,omitempty"`
-	DateCreated  string                        `json:"dateCreated,omitempty"`
-	DateUpdated  string                        `json:"dateUpdated,omitempty"`
-	Revision     *FeatureRevision              `json:"revision,omitempty"`
+	ID            string                        `json:"id"`
+	Archived      bool                          `json:"archived,omitempty"`
+	Description   string                        `json:"description,omitempty"`
+	Owner         string                        `json:"owner,omitempty"`
+	Project       string                        `json:"project,omitempty"`
+	ValueType     string                        `json:"valueType"`
+	DefaultValue  string                        `json:"defaultValue"`
+	Tags          []string                      `json:"tags,omitempty"`
+	Environments  map[string]FeatureEnvironment `json:"environments,omitempty"`
+	Rules         []FeatureRule                 `json:"rules,omitempty"`
+	Prerequisites []FeaturePrerequisite         `json:"prerequisites,omitempty"`
+	DateCreated   string                        `json:"dateCreated,omitempty"`
+	DateUpdated   string                        `json:"dateUpdated,omitempty"`
+	Revision      *FeatureRevision              `json:"revision,omitempty"`
 }
 
 // FeatureEnvironmentRequest sets a feature's enabled state in one
@@ -83,6 +84,11 @@ type FeatureRequest struct {
 	Owner        *string                              `json:"owner,omitempty"`
 	Environments map[string]FeatureEnvironmentRequest `json:"environments,omitempty"`
 	Rules        *[]FeatureRule                       `json:"rules,omitempty"`
+
+	// Prerequisites is a pointer to a slice for the same reason as
+	// Rules: a nil pointer omits the field (leave prerequisites
+	// unchanged), a non-nil pointer to an empty slice clears them.
+	Prerequisites *[]FeaturePrerequisite `json:"prerequisites,omitempty"`
 }
 
 type featureEnvelope struct {

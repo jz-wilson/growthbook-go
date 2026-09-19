@@ -117,3 +117,84 @@ func TestFeatureCreateRequestEncodesEnvironments(t *testing.T) {
 }
 
 func featurePtrBool(b bool) *bool { return &b }
+
+func TestFeatureRequestPrerequisitesNilVsEmpty(t *testing.T) {
+	// A nil Prerequisites pointer omits the field entirely.
+	b, err := json.Marshal(FeatureRequest{Description: ptrStr("no prerequisite change")})
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+	var m map[string]any
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+	if _, ok := m["prerequisites"]; ok {
+		t.Errorf("nil Prerequisites must omit the field, got %s", b)
+	}
+
+	// A non-nil, empty Prerequisites slice clears them by encoding [].
+	empty := []FeaturePrerequisite{}
+	b, err = json.Marshal(FeatureRequest{Prerequisites: &empty})
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+	raw, ok := m["prerequisites"].([]any)
+	if !ok || len(raw) != 0 {
+		t.Errorf("empty non-nil Prerequisites must encode as [], got %s", b)
+	}
+}
+
+func TestFeatureRequestPrerequisitesEncoding(t *testing.T) {
+	prereqs := []FeaturePrerequisite{{ID: featureRuleTestPrereqParent, Condition: featureRuleTestPrereqCond}}
+
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		_ = json.NewEncoder(w).Encode(featureEnvelope{Feature: Feature{ID: featureRuleTestFeatureID, ValueType: featureRuleTestBooleanType, DefaultValue: featureRuleTestValueTrue}})
+	}))
+	defer srv.Close()
+
+	c, err := NewFromSecret([]byte(`{"apiKey":"secret_1","apiUrl":"` + srv.URL + `/api"}`))
+	if err != nil {
+		t.Fatalf("NewFromSecret() error = %v", err)
+	}
+	if _, err := c.UpdateFeature(context.Background(), featureRuleTestFeatureID, FeatureRequest{Prerequisites: &prereqs}); err != nil {
+		t.Fatalf("UpdateFeature() error = %v", err)
+	}
+
+	raw, _ := gotBody["prerequisites"].([]any)
+	if len(raw) != 1 {
+		t.Fatalf("prerequisites = %+v, want 1 entry", gotBody["prerequisites"])
+	}
+	p, _ := raw[0].(map[string]any)
+	if p["id"] != featureRuleTestPrereqParent || p["condition"] != featureRuleTestPrereqCond {
+		t.Errorf("prerequisites[0] = %+v", p)
+	}
+}
+
+func TestFeatureGetDecodesPrerequisites(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(featureEnvelope{Feature: Feature{
+			ID:            featureRuleTestFeatureID,
+			ValueType:     featureRuleTestBooleanType,
+			DefaultValue:  featureRuleTestValueTrue,
+			Prerequisites: []FeaturePrerequisite{{ID: featureRuleTestPrereqParent, Condition: featureRuleTestPrereqCond}},
+		}})
+	}))
+	defer srv.Close()
+
+	c, err := NewFromSecret([]byte(`{"apiKey":"secret_1","apiUrl":"` + srv.URL + `/api"}`))
+	if err != nil {
+		t.Fatalf("NewFromSecret() error = %v", err)
+	}
+	f, err := c.GetFeature(context.Background(), featureRuleTestFeatureID)
+	if err != nil {
+		t.Fatalf("GetFeature() error = %v", err)
+	}
+	if len(f.Prerequisites) != 1 || f.Prerequisites[0].ID != featureRuleTestPrereqParent || f.Prerequisites[0].Condition != featureRuleTestPrereqCond {
+		t.Errorf("Prerequisites = %+v", f.Prerequisites)
+	}
+}
